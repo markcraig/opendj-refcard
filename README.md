@@ -1,6 +1,8 @@
 <!-- Copyright 2017 ForgeRock AS. -->
 # Quick Reference Card for ForgeRock DS/OpenDJ Servers
 
+View the Markdown version at <https://github.com/markcraig/opendj-refcard/blob/master/refcard.md>.
+
 The `.tex` reference card builds with `pdflatex`.
 
 For example, on macOS:
