@@ -1,0 +1,364 @@
+% Copyright 2017 ForgeRock AS.
+% Client-side reference card.
+\documentclass[10pt,landscape]{article}
+\usepackage[usenames, dvipsnames]{color}
+\usepackage[landscape]{geometry}
+\usepackage{hyperref}
+\usepackage{ifthen}
+\usepackage{listings}
+\usepackage{multicol}
+\usepackage{textcomp}
+
+% Bash code listings can wrap at white space, with \ for line continuation.
+\lstset{
+basicstyle=\footnotesize\ttfamily,
+breakatwhitespace=true,
+breaklines=true,
+columns=flexible,
+commentstyle=\color{Gray},
+language=sh,
+prebreak=\small\symbol{'134},
+showstringspaces=false,
+upquote=true
+}
+
+% No headers or footers.
+\pagestyle{empty}
+
+% No section numbers.
+\setcounter{secnumdepth}{0}
+
+% Use less white space.
+\geometry{top=1cm,left=1cm,right=1cm,bottom=1cm}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt plus 0.5ex}
+\makeatletter
+\renewcommand{\section}{\@startsection{section}{1}{0mm}%
+                                {-1ex plus -.5ex minus -.2ex}%
+                                {0.5ex plus .2ex}%x
+                                {\normalfont\normalsize\bfseries}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{0mm}%
+                                {-1explus -.5ex minus -.2ex}%
+                                {0.5ex plus .2ex}%
+                                {\normalfont\small\bfseries}}
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{0mm}%
+                                {-1ex plus -.5ex minus -.2ex}%
+                                {1ex plus .2ex}%
+                                {\normalfont\footnotesize\bfseries}}
+\makeatother
+
+
+% -----------------------------------------------------------------------------
+
+\begin{document}
+\raggedright
+\footnotesize
+\begin{multicols}{3}
+
+\section{ForgeRock DS/OpenDJ Client Refcard}
+
+\textbf{1.0 for version 5.5/4.1}
+
+This card demonstrates common user tasks.
+See the server reference card for administrative tasks
+
+Command examples run in Bash, using short options where available.
+Use \verb!--help! for detailed usage.
+
+Settings shown here are appropriate for evaluation on a single host system.
+For production deployments, read the documentation at
+\href{https://backstage.forgerock.com/docs/ds}{https://backstage.forgerock.com/docs/ds}.
+
+
+\section{Getting the Software}
+
+\subsection{Download ForgeRock DS}
+\href{https://backstage.forgerock.com/downloads}{https://backstage.forgerock.com/downloads}
+
+\subsection{Install Directory Server and Tools}
+\begin{lstlisting}
+cd /path/to ; unzip ~/Downloads/DS-5.5.zip
+./opendj/setup directory-server -D "cn=Directory Manager" -w password -h ldap.example.com -p 1389 -Z 1636 --httpPort 8080 --httpsPort 8443 --adminConnectorPort 4444 -b dc=example,dc=com -l /path/to/Example.ldif --acceptLicense
+\end{lstlisting}
+
+\subsection{Uninstall Directory Server and Tools}
+\begin{lstlisting}
+/path/to/opendj/bin/stop-ds ; rm -rf /path/to/opendj
+\end{lstlisting}
+
+
+\section{Using Client Applications}
+
+\verb!export PATH=/path/to/opendj/bin:$PATH!
+
+\subsection{LDAP}
+
+\subsubsection{Simple Search Filter}
+\begin{lstlisting}
+ldapsearch -h localhost -p 1389 -b dc=example,dc=com "(uid=bjensen)"
+\end{lstlisting}
+
+\subsubsection{Complex Search Filter}
+\begin{lstlisting}
+ldapsearch -h localhost -p 1389 -b dc=example,dc=com "(&(sn=Jensen)(l=San Francisco))"
+\end{lstlisting}
+
+\subsubsection{Search Attribute Lists}
+\begin{lstlisting}
+ldapsearch -h localhost -p 1389 -b dc=example,dc=com "(uid=bjensen)" mail
+ldapsearch -h localhost -p 1389 -b dc=example,dc=com "(uid=bjensen)" +
+ldapsearch -h localhost -p 1389 -b dc=example,dc=com "(uid=bjensen)" @person
+ldapsearch -h localhost -p 1389 -b dc=example,dc=com "(uid=bjensen)" 1.1
+\end{lstlisting}
+
+\subsubsection{Search Filter Operators}
+\begin{tabular}{@{}ll@{}}
+\verb!=!             & Equality, as in \verb!(sn=Jensen)! \\
+\verb!<=!            & Less than or equal to, alphanumeric \\
+\verb!>=!            & Greater than or equal to, alphanumeric \\
+\verb!=*!            & Presence, e.g. all entries with \verb!userPassword! \\
+                     & match \verb!(userPassword=*)!. \\
+\verb!~=!            & Approximate, "sounds like" \\
+\verb![:dn][:oid]:=! & Extensible match, e.g. \verb!(ou:dn:=people)! \\
+                     & matches all entries with \verb!ou=people! \\
+                     & in the DN or in the entry. \\
+                     & E.g. \verb!(lastLoginTime:! \\
+                     & \verb!1.3.6.1.4.1.26027.1.4.5:=-13w)! \\
+                     & matches entries with last login \\
+                     & in last 13 weeks. \\
+                     & Add digits to OID: \\
+                     & 1. (\verb!<!), .2 (\verb!<=!), \\
+                     & .3 (\verb!=!, default), .4 (\verb!>=!), \\
+                     & .5 (\verb!>!), .6 (substring). \\
+\verb$!$             & NOT, as in \verb$!(objectclass=person)$ \\
+\verb!&!             & AND, as in \verb!(&(sn=Jensen)! \\
+                     & \verb!(l=San Francisco))! \\
+\verb!|!             & OR, as in \verb!(|(sn=Jensen)(sn=Johnson))!
+\end{tabular}
+
+\subsubsection{Search Filter Escape Characters}
+\begin{tabular}{@{}ll@{}}
+Replace           & With \\
+\verb!*!          & \verb!\2a! \\
+\verb!(!          & \verb!\28! \\
+\verb!)!          & \verb!\29! \\
+\verb!\!          & \verb!\5c! \\
+\verb!NUL (0x00)! & \verb!\00!
+\end{tabular}
+
+\subsubsection{Add Entry}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: cn=Arsene Lupin,ou=Special Users,dc=example,dc=com
+objectClass: person
+objectClass: top
+cn: Arsene Lupin
+telephoneNumber: +33 1 23 45 67 89
+sn: Lupin
+\end{lstlisting}
+
+\subsubsection{Add Attribute Value}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: cn=Arsene Lupin,ou=Special Users,dc=example,dc=com
+changetype: modify
+add: description
+description: Gentleman thief and master of disguise
+\end{lstlisting}
+
+\subsubsection{Replace Attribute Value}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: cn=Arsene Lupin,ou=Special Users,dc=example,dc=com
+changetype: modify
+replace: description
+description: Fictional character
+\end{lstlisting}
+
+\subsubsection{Delete Attribute}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: cn=Arsene Lupin,ou=Special Users,dc=example,dc=com
+changetype: modify
+delete: description
+\end{lstlisting}
+
+\subsubsection{Delete Single Attribute Value}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: uid=bjensen,ou=People,dc=example,dc=com
+changetype: modify
+delete: cn
+cn: Babs Jensen
+\end{lstlisting}
+
+\subsubsection{Move Entry}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: cn=Arsene Lupin,ou=Special Users,dc=example,dc=com
+changetype: moddn
+newrdn: cn=Arsene Lupin
+deleteoldrdn: 0
+newsuperior: ou=People,dc=example,dc=com
+\end{lstlisting}
+
+\subsubsection{Rename Entry}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: uid=scarter,ou=people,dc=example,dc=com
+changetype: modrdn
+newrdn: uid=sjensen
+deleteoldrdn: 1
+
+dn: uid=sjensen,ou=people,dc=example,dc=com
+changetype: modify
+replace: cn
+cn: Sam Jensen
+-
+replace: sn
+sn: Jensen
+-
+replace: homeDirectory
+homeDirectory: /home/sjensen
+-
+replace: mail
+mail: sjensen@example.com
+\end{lstlisting}
+
+\subsubsection{Delete Entry}
+\begin{lstlisting}
+ldapdelete -h localhost -p 1389 -D "cn=Directory Manager" -w password "cn=Arsene Lupin,ou=People,dc=example,dc=com"
+\end{lstlisting}
+
+\subsubsection{Change Own Password}
+\begin{lstlisting}
+ldappasswordmodify -h localhost -p 1389 -a dn:uid=bjensen,ou=people,dc=example,dc=com -c hifalutin -n changeit
+\end{lstlisting}
+
+\subsubsection{Read Schema}
+\begin{lstlisting}
+ldapsearch -h localhost -p 1389 -b cn=schema -s base "(&)" +
+\end{lstlisting}
+
+\subsubsection{Read Server Capabilities}
+\begin{lstlisting}
+ldapsearch -h localhost -p 1389 -b "" -s base "(&)" +
+\end{lstlisting}
+
+\subsubsection{Create Static Group}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: cn=My Static Group,ou=Groups,dc=example,dc=com
+cn: My Static Group
+objectClass: groupOfNames
+objectClass: top
+ou: Groups
+member: uid=ahunter,ou=People,dc=example,dc=com
+member: uid=bjensen,ou=People,dc=example,dc=com
+member: uid=tmorris,ou=People,dc=example,dc=com
+\end{lstlisting}
+
+\subsubsection{Create Dynamic Group}
+\begin{lstlisting}
+ldapmodify -h localhost -p 1389 -D "cn=Directory Manager" -w password
+dn: cn=My Dynamic Group,ou=Groups,dc=example,dc=com
+cn: My Dynamic Group
+objectClass: top
+objectClass: groupOfURLs
+ou: Groups
+memberURL: ldap:///ou=People,dc=example,dc=com??sub?l=San Francisco
+\end{lstlisting}
+
+\subsubsection{Read Group Membership}
+\begin{lstlisting}
+ldapsearch -h localhost -p 1389 -b dc=example,dc=com "(uid=bjensen)" isMemberOf
+\end{lstlisting}
+
+\subsection{REST}
+
+\subsubsection{Enable \texttt{/api}}
+\begin{lstlisting}
+dsconfig set-http-endpoint-prop -h localhost -p 4444 -D "cn=Directory Manager" -w password --endpoint-name /api --set authorization-mechanism:"HTTP Basic" --set config-directory:config/rest2ldap/endpoints/api --set enabled:true -X -n
+\end{lstlisting}
+
+\subsubsection{Create}
+\begin{lstlisting}
+curl --request PUT --user kvaughan:bribery --header "Content-Type: application/json" --header "If-None-Match: *" --data '{"_id":"newuser", "_schema":"frapi:opendj:rest2ldap:user:1.0", "contactInformation": {"telephoneNumber":"+1 408 555 1212", "emailAddress":"newuser@example.com"}, "name": {"familyName":"New", "givenName":"User"}, "displayName":["New User"], "manager": {"_id":"kvaughan", "displayName":"Kirsten Vaughan"}}' \
+ http://localhost:8080/api/users/newuser
+\end{lstlisting}
+
+\subsubsection{Read}
+\begin{lstlisting}
+curl --user kvaughan:bribery \
+http://localhost:8080/api/users/newuser
+\end{lstlisting}
+
+\subsubsection{Update}
+\begin{lstlisting}
+curl --request PUT --user kvaughan:bribery --header "Content-Type: application/json" --header "If-Match: *" --data '{"contactInformation": {"telephoneNumber":"+1 408 555 4798", "emailAddress":"scarter@example.com"}, "name": {"familyName":"Carter", "givenName":"Sam"}, "userName":"scarter@example.com", "displayName": ["Sam Carter", "Samantha Carter"], "groups": [{"_id":"Accounting Managers"}], "manager": {"_id":"trigden", "displayName":"Torrey Rigden"}, "uidNumber":1002, "gidNumber":1000, "homeDirectory":"/home/scarter"}' \
+ http://localhost:8080/api/users/scarter
+\end{lstlisting}
+
+\subsubsection{Delete}
+\begin{lstlisting}
+curl --request DELETE --user kvaughan:bribery \
+http://localhost:8080/api/users/newuser
+\end{lstlisting}
+
+\subsubsection{Patch}
+\begin{lstlisting}
+curl --user kvaughan:bribery --request PATCH --header "Content-Type: application/json" --data '[{ "operation": "replace", "field": "/contactInformation/emailAddress", "value": "babs@example.com" }]' \
+ http://localhost:8080/api/users/bjensen
+\end{lstlisting}
+
+\subsubsection{Action: Change Own Password}
+\begin{lstlisting}
+curl --request POST --user bjensen:hifalutin --header "Content-Type: application/json" --insecure \
+ --data '{ "oldPassword": "hifalutin", "newPassword": "changeme"}' \
+ https://localhost:8443/api/users/bjensen\
+?_action=modifyPassword
+\end{lstlisting}
+
+\subsubsection{Query}
+\begin{lstlisting}
+curl --user kvaughan:bribery \
+ http://localhost:8080/api/users?\
+_queryFilter=userName+eq+'babs@example.com'
+\end{lstlisting}
+
+\subsection{LDAP Search Filters vs. REST Query Filters}
+\begin{tabular}{@{}ll@{}}
+LDAP Search Filter                 & REST Query Filter \\
+\verb!(&)!                         & \lstinline!_queryFilter=true! \\
+\verb!(uid=*)!                     & \lstinline!_queryFilter=_id+pr! \\
+\verb!(uid=bjensen)!               & \lstinline!_queryFilter=! \\
+                                   & \lstinline!_id+eq+'bjensen'! \\
+\verb!(uid=*jensen*)!              & \lstinline!_queryFilter=! \\
+                                   & \lstinline!_id+co+'jensen'! \\
+\verb!(uid=jensen*)!               & \lstinline!_queryFilter=! \\
+                                   & \lstinline!_id+sw+'jensen'! \\
+\verb!(&(uid=*jensen*)(cn=babs*))! & \lstinline!_queryFilter=! \\
+                                   & \lstinline!(_id+co+'jensen'! \\
+                                   & \lstinline!+and! \\
+                                   & \lstinline!+displayName+sw+'babs')! \\
+\verb!(|(uid=*jensen*)(cn=sam*))!  & \lstinline!_queryFilter=(! \\
+                                   & \lstinline!_id+co+'jensen'! \\
+                                   & \lstinline!+or! \\
+                                   & \lstinline!+displayName+sw+'sam')! \\
+\verb$(!(uid=*jensen*))$           & \lstinline!_queryFilter=! \\
+                                   & \lstinline$!(_id+co+'jensen')$ \\
+\verb!(uid<=jensen)!               & \lstinline!_queryFilter=! \\
+                                   & \lstinline!_id+le+'jensen'! \\
+\verb!(uid>=jensen)!               & \lstinline!_queryFilter=! \\
+                                   & \lstinline!_id+ge+'jensen'!
+\end{tabular}
+
+\rule{0.3\linewidth}{0.25pt}
+\scriptsize
+
+Copyright \copyright\ 2017 ForgeRock AS.
+
+\href{https://github.com/markcraig/opendj-refcard}{https://github.com/markcraig/opendj-refcard}
+
+\end{multicols}
+\end{document}
